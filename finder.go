@@ -30,8 +30,17 @@ type Ast struct {
 //	//Dump   string `json:"dump"`
 //}
 
-// This is used to determine if a node is a basic label.
-// Now I choose `Ident` or `SelectorExpr` as basic labels.
+// @title:	isBasicLabel
+//
+// @description:	This is used to determine if a node is a basic label and I choose `Ident` or `SelectorExpr` as basic
+//labels.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	ast *Ast	The node which needs to be determined.
+//
+// @return:	bool		If the node is a basic label, return true, otherwise return false.
+//
 func isBasicLabel(ast *Ast) bool {
 	if strings.Contains(ast.Label, "Fun") {
 		return false
@@ -47,9 +56,20 @@ func isBasicLabel(ast *Ast) bool {
 	return false
 }
 
-// This is used to determine if two nodes are equal.
+// @title:	astNodeEqual
+//
+// @description:	This is used to determine if two nodes are equal.
 // If two nodes are both basic labels, then compare their names.
 // If two nodes are both non-basic labels, then compare their children recursively.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	ast1 *Ast	The first node which needs to be compared.
+//
+// @param: 	ast2 *Ast	The second node which needs to be compared.
+//
+// @return:	bool		If two nodes are equal, return true, otherwise return false.
+//
 func astNodeEqual(ast1 *Ast, ast2 *Ast) bool {
 	if strings.Contains(ast1.Label, "Name") && strings.Contains(ast2.Label, "Name") {
 		if ast1.Attrs["Name"] == ast2.Attrs["Name"] {
@@ -66,7 +86,16 @@ func astNodeEqual(ast1 *Ast, ast2 *Ast) bool {
 	return false
 }
 
-// This is used to find the labels in condition statements.
+// @title:	addLabelsInConditionStatement
+//
+// @description:	This is used to find the labels in condition statements.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	ast *Ast	The node which needs to be determined.
+//
+// @return:	labels *list.List	List of labels in condition statements.
+//
 func addLabelsInConditionStatement(ast *Ast) (labels *list.List) {
 	labels = list.New()
 	for x := range ast.Children {
@@ -79,7 +108,20 @@ func addLabelsInConditionStatement(ast *Ast) (labels *list.List) {
 	return labels
 }
 
-// This is used to check if the labels in condition statements are in the left-handed side of assignment statements.
+// @title:	checkLabelsInAssignStatementLeftHandedSide
+//
+// @description:	This is used to check if the labels in condition statements are in the left-handed side of assignment
+//statements.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	ast *Ast	The node which needs to be determined.
+//
+// @param: 	labels *list.List	List of labels in condition statements.
+//
+// @return:	bool		If the labels in condition statements are in the left-handed side of assignment statements,
+//return true, otherwise return false.
+//
 func checkLabelsInAssignStatementLeftHandedSide(ast *Ast, labels *list.List) bool {
 	for x := range ast.Children {
 		for e := labels.Front(); e != nil; e = e.Next() {
@@ -96,7 +138,22 @@ func checkLabelsInAssignStatementLeftHandedSide(ast *Ast, labels *list.List) boo
 	return false
 }
 
-// This is used to check if the labels in the right-handed side of assignment statements are in the left-handed side of assignment statements.
+// @title:	checkLabelsInAssignStatementRightHandedSide
+//
+// @description:	This is used to check if the labels in the right-handed side of assignment statements are in the
+//left-handed side of assignment statements.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	ast *Ast	The node which needs to be determined.
+//
+// @param: 	functionArguments []*Ast	List of arguments of the function.
+//
+// @param: 	labels *list.List	List of labels in the left-handed side of assignment statements.
+//
+// @return:	bool		If the labels in the right-handed side of assignment statements are in the left-handed side of
+//assignment statements, return true, otherwise return false.
+//
 func checkLabelsInAssignStatementRightHandedSide(ast *Ast, functionArguments []*Ast, labels *list.List) bool {
 	for x := range ast.Children {
 		// no need to consider `BasicLit`
@@ -138,7 +195,17 @@ func checkLabelsInAssignStatementRightHandedSide(ast *Ast, functionArguments []*
 	return true
 }
 
-// This is used to find the labels in half statements, including right-handed side and left-handed side of assignment statements.
+// @title:	findLabelsInHalfStatements
+//
+// @description:	This is used to find the labels in half statements, including right-handed side and left-handed side
+//of assignment statements.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	ast *Ast	The node which needs to be determined.
+//
+// @return:	labels *list.List	List of labels in half statements.
+//
 func findLabelsInHalfStatements(ast *Ast) (labels *list.List) {
 	labels = list.New()
 	for x := range ast.Children {
@@ -153,7 +220,14 @@ func findLabelsInHalfStatements(ast *Ast) (labels *list.List) {
 	return labels
 }
 
-// This is used to trim the repeated labels.
+// @title:	trimList
+//
+// @description:	This is used to trim the repeated labels.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	labels *list.List	List of labels which needs to be trimmed.
+//
 func trimList(labels *list.List) {
 	for x := labels.Front(); x != nil; x = x.Next() {
 		for y := x.Next(); y != nil; y = y.Next() {
@@ -164,8 +238,19 @@ func trimList(labels *list.List) {
 	}
 }
 
-// This is used to find all statements relative to the exchangeable sentences.
+// @title:	expendKernels
+//
+// @description:	This is used to find all statements relative to the exchangeable sentences.
 // It is like expanding the kernels.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	ast *Ast	The node which needs to be determined.
+//
+// @param: 	kernels []*Ast	List of exchangeable sentences.
+//
+// @return:	pos []*Ast	List of statements relative to the exchangeable sentences.
+//
 func expendKernels(ast *Ast, kernels []*Ast) (pos []*Ast) {
 	pos = []*Ast{}
 	for kernel := range kernels {
@@ -204,7 +289,16 @@ func expendKernels(ast *Ast, kernels []*Ast) (pos []*Ast) {
 	return pos
 }
 
-// This is used to find all exchangeable sentences in the function declaration.
+// @title:	analyzeFunctionDeclaration
+//
+// @description:	This is used to find all exchangeable sentences in the function declaration.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	ast *Ast	The node which needs to be determined.
+//
+// @return:	posList *list.List	List of exchangeable sentences in the function.
+//
 func analyzeFunctionDeclaration(ast *Ast) (posList *list.List) {
 	posList = list.New()
 	if strings.Contains(ast.Label, "FuncDecl") {
@@ -228,7 +322,16 @@ func analyzeFunctionDeclaration(ast *Ast) (posList *list.List) {
 	return posList
 }
 
-// This is used to find the labels in the left-handed side of assignment statements.
+// @title:	addLabelsInLeftValue
+//
+// @description:	This is used to find the labels in the left-handed side of assignment statements.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	ast *Ast	The node which needs to be determined.
+//
+// @return:	labels *list.List	List of labels in the left-handed side of assignment statements.
+//
 func addLabelsInLeftValue(ast *Ast) (labels *list.List) {
 	labels = list.New()
 	for x := range ast.Children {
@@ -241,7 +344,18 @@ func addLabelsInLeftValue(ast *Ast) (labels *list.List) {
 	return labels
 }
 
-// This is used to find the exchangeable sentences in the function.
+// @title:	findExchangeableSentences
+//
+// @description:	This is used to find the exchangeable sentences in the function.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	ast *Ast	The node which needs to be determined.
+//
+// @param: 	functionArguments []*Ast	List of arguments of the function.
+//
+// @return:	pos []*Ast	List of exchangeable sentences in the function.
+//
 func findExchangeableSentences(ast *Ast, functionArguments []*Ast) (pos []*Ast) {
 	pos = []*Ast{}
 	if strings.Contains(ast.Label, "List : []ast.Stmt") {
@@ -286,8 +400,21 @@ func findExchangeableSentences(ast *Ast, functionArguments []*Ast) (pos []*Ast) 
 	return pos
 }
 
-// This is used to find `GetState` or `PutState` expressions in the function.
-func findGetOrPutStateExpression(ast *Ast, GetStateMap map[string][]int, isGet bool) (ArgumentPosition []int) {
+// @title:	findGetOrPutStateExpression
+//
+// @description:	This is used to find `GetState` or `PutState` expressions in the function.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	ast *Ast	The node which needs to be determined.
+//
+// @param: 	GetOrPutStateMap map[string][]int	Map of `GetState` or `PutState` expressions in the function.
+//
+// @param: 	isGet bool	If the expression is `GetState`, then `isGet` is true, otherwise `isGet` is false.
+//
+// @return:	ArgumentPosition []int	List of positions of `GetState` or `PutState` expressions in the function.
+//
+func findGetOrPutStateExpression(ast *Ast, GetOrPutStateMap map[string][]int, isGet bool) (ArgumentPosition []int) {
 	ArgumentPosition = []int{}
 	if strings.Contains(ast.Label, "CallExpr") {
 		if strings.Contains(ast.Children[0].Label, "SelectorExpr") {
@@ -301,21 +428,39 @@ func findGetOrPutStateExpression(ast *Ast, GetStateMap map[string][]int, isGet b
 				}
 			}
 		} else {
-			ArgumentPosition = GetStateMap[ast.Children[0].Attrs["Name"]]
+			ArgumentPosition = GetOrPutStateMap[ast.Children[0].Attrs["Name"]]
 		}
 	}
 	for x := range ast.Children {
-		ArgumentPosition = append(ArgumentPosition, findGetOrPutStateExpression(ast.Children[x], GetStateMap, isGet)...)
+		ArgumentPosition = append(ArgumentPosition, findGetOrPutStateExpression(ast.Children[x], GetOrPutStateMap, isGet)...)
 	}
 	return ArgumentPosition
 }
 
-func findGetOrPutStateList(ast *Ast, GetStateMap map[string][]int, arguments []*Ast, isGet bool) (GetStateList []int) {
+// @title:	findGetOrPutStateList
+//
+// @description:	This is used to find the positions of `GetState` or `PutState` expressions in the arguments of the
+//function.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	ast *Ast	The node which needs to be determined.
+//
+// @param: 	GetOrPutStateMap map[string][]int	Map of `GetState` or `PutState` expressions in the function.
+//
+// @param: 	arguments []*Ast	List of arguments of the function.
+//
+// @param: 	isGet bool	If the expression is `GetState`, then `isGet` is true, otherwise `isGet` is false.
+//
+// @return:	GetStateList []int	List of positions of `GetState` or `PutState` expressions in the arguments of the
+//function.
+//
+func findGetOrPutStateList(ast *Ast, GetOrPutStateMap map[string][]int, arguments []*Ast, isGet bool) (GetStateList []int) {
 	GetStateList = []int{}
 	var argumentsPosition []int
 	tempLabels := list.New()
 	for x := len(ast.Children) - 1; x >= 0; x-- {
-		argumentsPosition = findGetOrPutStateExpression(ast.Children[x], GetStateMap, isGet)
+		argumentsPosition = findGetOrPutStateExpression(ast.Children[x], GetOrPutStateMap, isGet)
 		if len(argumentsPosition) != 0 {
 			for y := range argumentsPosition {
 				tempLabels.PushBack(ast.Children[x].Children[len(ast.Children[x].Children)-1].Children[0].Children[1].Children[argumentsPosition[y]])
@@ -357,6 +502,19 @@ func findGetOrPutStateList(ast *Ast, GetStateMap map[string][]int, arguments []*
 	return GetStateList
 }
 
+// @title:	analyzeReadWriteAPI
+//
+// @description:	This is used to find the positions of `GetState` or `PutState` expressions in the arguments of the
+//function.
+//
+// @auth: 	Songxiao Guo
+//
+// @param: 	ast *Ast	The node which needs to be determined.
+//
+// @return:	GetStateMap map[string][]int	Map of `GetState` expressions in the function.
+//
+// @return:	PutStateMap map[string][]int	Map of `PutState` expressions in the function.
+//
 func analyzeReadWriteAPI(ast *Ast) (GetStateMap map[string][]int, PutStateMap map[string][]int) {
 	GetStateMap = make(map[string][]int)
 	PutStateMap = make(map[string][]int)
@@ -395,6 +553,18 @@ func analyzeReadWriteAPI(ast *Ast) (GetStateMap map[string][]int, PutStateMap ma
 	return GetStateMap, PutStateMap
 }
 
+// Parse
+//
+// @description:	This is used to parse the source code.
+//
+// @auth:	Songxiao Guo
+//
+// @param: 	filename string	The name of the file which needs to be parsed.
+//
+// @param: 	source string	The source code which needs to be parsed.
+//
+// @return:	err error	If the source code can be parsed, return nil, otherwise return an error.
+//
 func Parse(filename string, source string) (err error) {
 
 	// Create the AST by parsing src.
@@ -571,6 +741,12 @@ func Label(prefix string, n interface{}) string {
 	return string(bf.Bytes())
 }
 
+// @title:	main
+//
+// @description:	This is the main function, the main part of the program.
+//
+// @auth: 	Songxiao Guo
+//
 func main() {
 	inputFile := ""
 	if len(os.Args) == 2 {
