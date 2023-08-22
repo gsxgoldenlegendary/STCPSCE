@@ -1,4 +1,6 @@
 
+# Static Transaction Chopping for Parallel Smart Contract Executions
+
 ```bash
 #Usage
 go run main.go <inputFile>

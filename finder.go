@@ -21,12 +21,17 @@ type Ast struct {
 	Children []*Ast            `json:"children"`
 }
 
+// This is a type used to represent the result of the parsing.
+// Used in debugging.
+
 //type Result struct {
 //	*Ast `json:"ast"`
 //	//Source string `json:"source"`
 //	//Dump   string `json:"dump"`
 //}
 
+// This is used to determine if a node is a basic label.
+// Now I choose `Ident` or `SelectorExpr` as basic labels.
 func isBasicLabel(ast *Ast) bool {
 	if strings.Contains(ast.Label, "Fun") {
 		return false
@@ -42,6 +47,9 @@ func isBasicLabel(ast *Ast) bool {
 	return false
 }
 
+// This is used to determine if two nodes are equal.
+// If two nodes are both basic labels, then compare their names.
+// If two nodes are both non-basic labels, then compare their children recursively.
 func astNodeEqual(ast1 *Ast, ast2 *Ast) bool {
 	if strings.Contains(ast1.Label, "Name") && strings.Contains(ast2.Label, "Name") {
 		if ast1.Attrs["Name"] == ast2.Attrs["Name"] {
@@ -58,6 +66,7 @@ func astNodeEqual(ast1 *Ast, ast2 *Ast) bool {
 	return false
 }
 
+// This is used to find the labels in condition statements.
 func addLabelsInConditionStatement(ast *Ast) (labels *list.List) {
 	labels = list.New()
 	for x := range ast.Children {
@@ -70,6 +79,7 @@ func addLabelsInConditionStatement(ast *Ast) (labels *list.List) {
 	return labels
 }
 
+// This is used to check if the labels in condition statements are in the left-handed side of assignment statements.
 func checkLabelsInAssignStatementLeftHandedSide(ast *Ast, labels *list.List) bool {
 	for x := range ast.Children {
 		for e := labels.Front(); e != nil; e = e.Next() {
@@ -77,6 +87,8 @@ func checkLabelsInAssignStatementLeftHandedSide(ast *Ast, labels *list.List) boo
 				return true
 			}
 		}
+		//Theoretically, we should check the labels in the left-handed side of assignment statements recursively.
+		//But in practice, we only need to check the first level of the left-handed side of assignment statements.
 		//if checkLabelsInAssignStatementLeftHandedSide(ast.Children[x], labels) {
 		//	return true
 		//}
@@ -84,8 +96,10 @@ func checkLabelsInAssignStatementLeftHandedSide(ast *Ast, labels *list.List) boo
 	return false
 }
 
+// This is used to check if the labels in the right-handed side of assignment statements are in the left-handed side of assignment statements.
 func checkLabelsInAssignStatementRightHandedSide(ast *Ast, functionArguments []*Ast, labels *list.List) bool {
 	for x := range ast.Children {
+		// no need to consider `BasicLit`
 		if strings.Contains(ast.Children[x].Label, "BasicLit") {
 			return false
 		} else if strings.Contains(ast.Children[x].Label, "*ast.Ident") {
@@ -99,6 +113,7 @@ func checkLabelsInAssignStatementRightHandedSide(ast *Ast, functionArguments []*
 					return false
 				}
 			}
+			// need to investigate the arguments of function calls
 		} else if strings.Contains(ast.Children[x].Label, "CallExpr") {
 			for z := range ast.Children[x].Children[1].Children {
 				for y := range functionArguments {
@@ -114,6 +129,8 @@ func checkLabelsInAssignStatementRightHandedSide(ast *Ast, functionArguments []*
 				return true
 			}
 		}
+		//Theoretically, we should check the labels in the right-handed side of assignment statements recursively.
+		//But in practice, we only need to check the first level of the right-handed side of assignment statements.
 		//if !checkLabelsInAssignStatementRightHandedSide(ast.Children[x], functionArguments) {
 		//	return false
 		//}
@@ -121,6 +138,7 @@ func checkLabelsInAssignStatementRightHandedSide(ast *Ast, functionArguments []*
 	return true
 }
 
+// This is used to find the labels in half statements, including right-handed side and left-handed side of assignment statements.
 func findLabelsInHalfStatements(ast *Ast) (labels *list.List) {
 	labels = list.New()
 	for x := range ast.Children {
@@ -135,6 +153,7 @@ func findLabelsInHalfStatements(ast *Ast) (labels *list.List) {
 	return labels
 }
 
+// This is used to trim the repeated labels.
 func trimList(labels *list.List) {
 	for x := labels.Front(); x != nil; x = x.Next() {
 		for y := x.Next(); y != nil; y = y.Next() {
@@ -144,10 +163,14 @@ func trimList(labels *list.List) {
 		}
 	}
 }
+
+// This is used to find all statements relative to the exchangeable sentences.
+// It is like expanding the kernels.
 func expendKernels(ast *Ast, kernels []*Ast) (pos []*Ast) {
 	pos = []*Ast{}
 	for kernel := range kernels {
 		var x int
+		// Step 1: find the last statement which can be parallelized.
 		for x = len(ast.Children) - 1; x >= 0; x-- {
 			if astNodeEqual(ast.Children[x], kernels[kernel]) {
 				break
@@ -157,6 +180,7 @@ func expendKernels(ast *Ast, kernels []*Ast) (pos []*Ast) {
 		tempLabels.PushBackList(findLabelsInHalfStatements(ast.Children[x].Children[1]))
 		trimList(tempLabels)
 		pos = append(pos, ast.Children[x])
+		// Step 2: find the statements which can be parallelized before the last statement.
 		for x--; tempLabels.Len() != 0 && x >= 0; x-- {
 			if strings.Contains(ast.Children[x].Label, "AssignStmt") {
 				flag := false
@@ -168,6 +192,7 @@ func expendKernels(ast *Ast, kernels []*Ast) (pos []*Ast) {
 						}
 					}
 				}
+				// If flag is true, it means that some new labels are added in the label list.
 				if flag {
 					tempLabels.PushBackList(findLabelsInHalfStatements(ast.Children[x].Children[1]))
 					trimList(tempLabels)
@@ -179,26 +204,31 @@ func expendKernels(ast *Ast, kernels []*Ast) (pos []*Ast) {
 	return pos
 }
 
+// This is used to find all exchangeable sentences in the function declaration.
 func analyzeFunctionDeclaration(ast *Ast) (posList *list.List) {
 	posList = list.New()
 	if strings.Contains(ast.Label, "FuncDecl") {
 		var arguments []*Ast
+		// Step 1: find the arguments of the function.
 		for x := range ast.Children[2].Children[0].Children[0].Children {
 			arguments = append(arguments, ast.Children[2].Children[0].Children[0].Children[x].Children[0].Children[0])
 		}
+		// Step 2: find the exchangeable sentences in the function.
 		kernels := findExchangeableSentences(ast, arguments)
+		// Step 3: expand the kernels.
 		if len(kernels) != 0 {
 			posList.PushBack(expendKernels(ast.Children[3].Children[0], kernels))
 		}
 	} else {
+		// The `else` part is used to link each list of exchangeable sentences in different functions.
 		for x := range ast.Children {
 			posList.PushBackList(analyzeFunctionDeclaration(ast.Children[x]))
 		}
-
 	}
 	return posList
 }
 
+// This is used to find the labels in the left-handed side of assignment statements.
 func addLabelsInLeftValue(ast *Ast) (labels *list.List) {
 	labels = list.New()
 	for x := range ast.Children {
@@ -211,14 +241,18 @@ func addLabelsInLeftValue(ast *Ast) (labels *list.List) {
 	return labels
 }
 
+// This is used to find the exchangeable sentences in the function.
 func findExchangeableSentences(ast *Ast, functionArguments []*Ast) (pos []*Ast) {
 	pos = []*Ast{}
 	if strings.Contains(ast.Label, "List : []ast.Stmt") {
 		labelsInCondition := list.New()
 		labelsInLeftHandedSide := list.New()
 		for x := range ast.Children {
+			// If the statement is `IfStmt`, then we need to find the labels in the condition statement.
 			if strings.Contains(ast.Children[x].Label, "IfStmt") {
 				labelsInCondition.PushBackList(addLabelsInConditionStatement(ast.Children[x]))
+				// If the statement is `IncDecStmt` and the self-increasing or self-decreasing label is not in the
+				//conditions which in front of it, it means that the statement can be parallelized.
 			} else if strings.Contains(ast.Children[x].Label, "IncDecStmt") {
 				for e := labelsInCondition.Front(); e != nil; e = e.Next() {
 					if astNodeEqual(ast.Children[x].Children[0], e.Value.(*Ast)) {
@@ -226,6 +260,11 @@ func findExchangeableSentences(ast *Ast, functionArguments []*Ast) (pos []*Ast) 
 					}
 				}
 				pos = append(pos, ast.Children[x])
+				// If the statement is `AssignStmt`, then we need to check if the operator is `:=`.
+				// If the operator is `:=`, then we need to find the labels in the left-handed side of assignment statements.
+				// If the operator is `=`, then we need to check if the labels in the left-handed side of assignment statements
+				// are in the conditions which in front of it and if the labels in the right-handed side of assignment statements
+				// are in the left-handed side of assignment statements.
 			} else if strings.Contains(ast.Children[x].Label, "AssignStmt") {
 				if ast.Children[x].Attrs["Tok"] == ":=" {
 					labelsInLeftHandedSide.PushBackList(addLabelsInLeftValue(ast.Children[x].Children[0]))
@@ -237,7 +276,7 @@ func findExchangeableSentences(ast *Ast, functionArguments []*Ast) (pos []*Ast) 
 					}
 				}
 			}
-		A:
+		A: //It is my coding style to use `goto` to break the nested loop.
 		}
 	} else {
 		for x := range ast.Children {
@@ -247,6 +286,7 @@ func findExchangeableSentences(ast *Ast, functionArguments []*Ast) (pos []*Ast) 
 	return pos
 }
 
+// This is used to find `GetState` or `PutState` expressions in the function.
 func findGetOrPutStateExpression(ast *Ast, GetStateMap map[string][]int, isGet bool) (ArgumentPosition []int) {
 	ArgumentPosition = []int{}
 	if strings.Contains(ast.Label, "CallExpr") {
@@ -297,13 +337,16 @@ func findGetOrPutStateList(ast *Ast, GetStateMap map[string][]int, arguments []*
 			}
 		}
 	}
+	// If the label is `SelectorExpr` or `IndexExpr`, then we need to use the labels before the operator `.` or `[`.
 	for e := tempLabels.Front(); e != nil; e = e.Next() {
 		if strings.Contains(e.Value.(*Ast).Label, "SelectorExpr") || strings.Contains(e.Value.(*Ast).Label, "IndexExpr") {
 			tempLabels.PushBack(e.Value.(*Ast).Children[0])
 			tempLabels.Remove(e)
 		}
 	}
+	// It must be trimmed again because the labels before the operator `.` or `[` may be repeated.
 	trimList(tempLabels)
+	// I haven't found a better way to find the position of the labels in the arguments.
 	for x := range arguments {
 		for e := tempLabels.Front(); e != nil; e = e.Next() {
 			if astNodeEqual(arguments[x], e.Value.(*Ast)) {
@@ -325,6 +368,11 @@ func analyzeReadWriteAPI(ast *Ast) (GetStateMap map[string][]int, PutStateMap ma
 				for x := range ast.Children[y].Children[len(ast.Children[y].Children)-2].Children[0].Children[0].Children {
 					arguments = append(arguments, ast.Children[y].Children[len(ast.Children[y].Children)-2].Children[0].Children[0].Children[x].Children[0].Children[0])
 				}
+				// Here is a complicated logic. I will explain it in detail.
+				// The basic idea is update the `GetStateMap` and `PutStateMap` until they are not changed.
+				// So we need to find the new `GetStateMap` and `PutStateMap` in each iteration.
+				// Then use a `DeepEqual` function to check if the `GetStateMap` and `PutStateMap` are changed.
+				// The code `[len(ast.Children[y].Children)-3]` is used to process some nodes which lack of some children.
 				if !reflect.DeepEqual(GetStateMap[ast.Children[y].Children[len(ast.Children[y].Children)-3].
 					Attrs["Name"]], findGetOrPutStateList(ast.Children[y].Children[len(ast.Children[y].Children)-1].
 					Children[0], GetStateMap, arguments, true)) {
@@ -338,7 +386,7 @@ func analyzeReadWriteAPI(ast *Ast) (GetStateMap map[string][]int, PutStateMap ma
 					Children[0], GetStateMap, arguments, false)) {
 					PutStateMap[ast.Children[y].Children[len(ast.Children[y].Children)-3].
 						Attrs["Name"]] = findGetOrPutStateList(ast.
-						Children[y].Children[len(ast.Children[y].Children)-1].Children[0], GetStateMap, arguments, true)
+						Children[y].Children[len(ast.Children[y].Children)-1].Children[0], GetStateMap, arguments, false)
 					flag = true
 				}
 			}
