@@ -1,4 +1,3 @@
-
 # Static Transaction Chopping for Parallel Smart Contract Executions
 
 ```bash
@@ -32,16 +31,13 @@ This means line 104 derives from line 99, and line 99 derived from line 94.
 
 The phase 2 of the program is used to find read/write API calls in a `Golang` source code file.
 
-The output will be the key parameters of the function of the read/write API calls.
+The output will be the position of parameters of the function of the read/write API calls, counting from 0.
 
 ```bash
+Phase2: Read/Write API:
 GetState:
-CreateAccountRandom: args
-CreateAccount: args
-Query: args
-loadAccount: id
-
+map[Amalgamate:[1] CreateAccount:[1] CreateAccountRandom:[1] DepositChecking:[1] Init:[] Invoke:[] Query:[1] SendPayment:[1] TransactSavings:[1] WriteCheck:[1] accountKey:[] errormsg:[] hexdigest:[] loadAccount:[1] main:[] saveAccount:[] systemerror:[]]
 PutState:
-saveAccount: account
+map[Amalgamate:[1] CreateAccount:[] CreateAccountRandom:[] DepositChecking:[1] Init:[] Invoke:[] Query:[] SendPayment:[1] TransactSavings:[1] WriteCheck:[1] accountKey:[] errormsg:[] hexdigest:[] loadAccount:[] main:[] saveAccount:[1] systemerror:[]]
 
 ```
